@@ -1,0 +1,833 @@
+---
+title: "ggplot2 review"
+output: html_notebook
+---
+
+
+#1 First ggplot2 bar chart
+```{r}
+#Setup
+library(ggplot2)
+library(gcookbook)
+
+head(climate)
+
+csub<-subset(climate,Source=='Berkeley'&Year>=1900)
+head(csub)
+csub$pos<-csub$Anomaly10y>=0
+csub
+
+```
+
+
+```{r}
+ggplot(csub,aes(x=Year,y=Anomaly10y,fill=pos))+
+         geom_bar(stat='identity',position='identity')
+```
+
+1 fill=
+  pos is a column with value of T/F; fill=pos  is used for color
+2 stat=
+  geom_bar(stat='identity') the height represents y value, for discrete X and continuous Y
+        or stat='bin'     the height of each bar equal to the number of cases in each group (histogram)
+
+Position adjustments
+3 position=
+  position='identity'     seem to be useless
+  position='dodge'         side by side 
+  position='fill'      stack on top of one another, with normalized height(see proportion)
+  position='stack'      stack on top of one another, with absolute height
+  geom_point(position='jitter')   avoid overlapping
+
+```{r}
+ggplot(csub,aes(x=Year,y=Anomaly10y,fill=pos))+
+  geom_bar(stat='identity',position='identity',color='black',size=0.25)+
+  scale_fill_manual(values=c("#CCEEFF","#FFDDDD"),guide=FALSE)
+```
+
+
+color/size: the color/size of border
+Scales
+scale_fill_manual(values=
+                  limits=
+                  breaks=
+                  names=  #title to use in legend
+                  labels=  )
+                  
+guide=FALSE   get rid of legend
+
+```{r}
+ggplot(csub,aes(x=Year,y=Anomaly10y,fill=pos))+
+  geom_bar(stat='identity',position='identity',color='black',size=0.25)+
+  scale_fill_manual(values=c("#CCEEFF","#FFDDDD"),guide=FALSE)+
+  labs(y="10 year Anomaly in degrees C")+
+  ggtitle("Its getting hot in here!")+
+  theme_minimal()
+
+```
+
+labels
+ggtitle()
+xlab()
+ylab()
+labs(title= , x= , y= )
+
+theme
+theme_bw()
+theme_grey()
+theme_classic()
+theme_minimal()
+
+
+#2 Intro to ggplot2
+##Geometric objects and aesthetics
+```{r}
+#Basic setup
+library(tidyverse)
+setwd("C:/_Emory/2&4-675-Data Viz/In-class exercises/0910-Intro to ggplot2/Rgraphics/dataSets")
+housing <- read_csv("landdata-states.csv")
+head(housing[1:5])
+```
+
+```{r}
+#histogram in ggplot2
+ggplot(housing,aes(x=Home.Value))+
+  geom_histogram()
+```
+
+```{r}
+ggplot(filter(housing,State %in% c("MA","TX")),
+       aes(x=Date,y=Home.Value,color=State))+
+  geom_point()
+```
+
+using color instead of fill
+
+
+points(scatterplots)
+```{r}
+hp2001Q1 <- filter(housing, Date == 2001.25) 
+ggplot(hp2001Q1,
+       aes(y = Structure.Cost, x = Land.Value)) +
+  geom_point()
+
+ggplot(hp2001Q1,
+       aes(y = Structure.Cost, x = log(Land.Value))) +
+  geom_point()
+```
+
+prediction line
+```{r}
+hp2001Q1$pred.SC <- predict(lm(Structure.Cost ~ log(Land.Value), data = hp2001Q1))
+
+p1 <- ggplot(hp2001Q1, aes(x = log(Land.Value), y = Structure.Cost))
+
+p1 + geom_point(aes(color = Home.Value)) +
+  geom_line(aes(y = pred.SC))
+```
+
+smoothers
+```{r}
+p1 +
+  geom_point(aes(color = Home.Value)) +
+  geom_smooth()
+```
+
+text
+```{r}
+p1 + 
+  geom_text(aes(label=State), size = 3)
+
+library("ggrepel")
+p1 + 
+  geom_text_repel(aes(label=State), size = 3)
+
+p1 + 
+  geom_point() + 
+  geom_text_repel(aes(label=State), size = 3)
+```
+
+geom_text(aes(label=))
+geom_text_repel: avoid overlapping
+
+```{r}
+p1 +
+  geom_point(aes(color=Home.Value, shape = region))
+```
+
+
+Exercise I
+```{r}
+setwd("C:/_Emory/2&4-675-Data Viz/In-class exercises/0910-Intro to ggplot2/Rgraphics/dataSets")
+dat <- read_csv("EconomistData.csv")
+dat
+```
+
+These data consist of Human Development Index and Corruption Perception Index scores for several countries.
+
+1 Create a scatter plot with CPI on the x axis and HDI on the y axis.
+2 Color the points blue.
+3 Map the color of the the points to Region.
+4 Make the points bigger by setting size to 2
+5 Map the size of the points to HDI.Rank
+
+```{r}
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(color="blue",size=2)
+  
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(aes(color=Region),size=2)
+
+ggplot(dat,aes(x=CPI,y=HDI,color=Region))+
+  geom_point()
+
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(aes(color=Region,size=HDI.Rank))
+
+```
+
+color="bule"  quotation mark
+
+color/size are included in aes
+
+##Statistical transformations
+
+
+```{r}
+p2 <- ggplot(housing, aes(x = Home.Value))
+p2 + geom_histogram()
+
+p2 + geom_histogram(stat = "bin", binwidth=4000)
+```
+
+
+```{r}
+housing.sum <- aggregate(housing["Home.Value"], housing["State"], FUN=mean)
+rbind(head(housing.sum), tail(housing.sum))
+
+#ggplot(housing.sum, aes(x=State, y=Home.Value)) + 
+  #geom_bar()
+
+ggplot(housing.sum, aes(x=State, y=Home.Value)) + 
+  geom_bar(stat="identity")
+```
+
+Exercise II
+1 Re-create a scatter plot with CPI on the x axis and HDI on the y axis (as you did in the previous exercise).
+2 Overlay a smoothing line on top of the scatter plot using geom_smooth.
+3 Overlay a smoothing line on top of the scatter plot using geom_smooth, but use a linear model for the predictions. Hint: see ?stat_smooth.
+4 Overlay a smoothing line on top of the scatter plot using geom_line. Hint: change the statistical transformation.
+5 BONUS: Overlay a smoothing line on top of the scatter plot using the default loess method, but make it less smooth. Hint: see ?loess.
+
+
+```{r}
+ggplot(dat, aes(x = CPI, y = HDI)) +
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(dat, aes(x = CPI, y = HDI)) +
+  geom_point()+
+  geom_line(stat="smooth",method="loess")
+
+ggplot(dat, aes(x = CPI, y = HDI)) +
+  geom_point()+
+  geom_smooth(method="loess",span=0.4)
+```
+
+geom_smooth(method="lm")
+geom_line(stat="smooth",method="loess")
+
+##Scales
+
+```{r}
+p3 <- ggplot(housing,aes(x = State, y = Home.Price.Index)) + 
+        theme(legend.position="top", axis.text=element_text(size = 6))
+p4 <- p3 + geom_point(aes(color = Date),
+              alpha = 0.5,size = 1.5,
+              position = position_jitter(width = 0.25, height = 0))
+p4
+```
+
+size of x/y axis tickers: axis.text=element_text(size = 6)
+
+```{r}
+p4 + scale_x_discrete(name="State Abbreviation") +
+  scale_color_continuous(name="",
+                         breaks = c(1976, 1994, 2013),
+                         labels = c("'76", "'94", "'13"))
+```
+
+
+change xlabs: scale_x_discrete(name="State Abbreviation")
+
+```{r}
+p4 +
+  scale_x_discrete(name="State Abbreviation") +
+  scale_color_continuous(name="",
+                         breaks = c(1976, 1994, 2013),
+                         labels = c("'76", "'94", "'13"),
+                         low = "blue", high = "red")
+
+#Another Choice
+#                       low = muted("blue"), high = muted("red"))
+```
+
+```{r}
+library(scales)
+
+p4 +
+  scale_color_gradient2(name="",
+                        breaks = c(1976, 1994, 2013),
+                        labels = c("'76", "'94", "'13"),
+                        low = muted("blue"),
+                        high = muted("red"),
+                        mid = "gray60",
+                        midpoint = 1994)
+```
+
+
+Exercise III
+1 Create a scatter plot with CPI on the x axis and HDI on the y axis. Color the points to indicate region.
+2 Modify the x, y, and color scales so that they have more easily-understood names (e.g., spell out “Human development Index” instead of “HDI”).
+3 Modify the color scale to use specific values of your choosing. Hint: see ?scale_color_manual.
+
+
+there may exist some mistakes//OSOSOSOSOS
+```{r}
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(aes(color=Region))
+
+
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(aes(color=Region))+
+  scale_x_discrete(name="Corruption Perception Index")+
+  scale_y_discrete(name="Human development Index")+
+  scale_color_discrete(name="Region of the world")
+
+ggplot(dat,aes(x=CPI,y=HDI))+
+  geom_point(aes(color=Region))+
+  labs(x="Corruption Perception Index",y="Human development Index")+
+  scale_color_discrete(name="Region of the world")
+
+ggplot(dat, aes(x = CPI, y = HDI)) +
+geom_point(aes(color = "Region")) +
+scale_x_continuous(name = "Corruption Perception Index") +
+scale_y_continuous(name = "Human Development Index") +
+  scale_color_manual(name = "Region of the world",
+                     values = c("#24576D",
+                                "#099DD7",
+                                "#28AADC",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+
+```
+
+##Faceting
+
+faceting: make more plots instead of put all in one plot
+
+```{r}
+p5 <- ggplot(housing, aes(x = Date, y = Home.Value))
+p5 + geom_line(aes(color = State))  
+
+p5<-p5 + geom_line() +
+   facet_wrap(~State, ncol = 10)
+p5
+```
+
+Use ~State for identify different charts
+facet_wrap(~State, ncol = 10)
+
+##Themes
+
+```{r}
+p5 + theme_linedraw()
+p5 + theme_light()
+p5 + theme_minimal() +
+  theme(text = element_text(color = "turquoise"))
+```
+
+Create a theme you like
+```{r}
+theme_new <- theme_bw() +
+  theme(plot.background = element_rect(size = 1, color = "blue", fill = "black"),
+        text=element_text(size = 12, family = "Serif", color = "ivory"),
+        axis.text.y = element_text(colour = "purple"),
+        axis.text.x = element_text(colour = "red"),
+        panel.background = element_rect(fill = "pink"),
+        strip.background = element_rect(fill = muted("orange")))
+
+p5 + theme_new
+```
+
+##Challenge solution
+
+```{r}
+pc1 <- ggplot(dat, aes(x = CPI, y = HDI, color = Region))
+pc1 + geom_point()
+```
+
+
+To complete this graph we need to:
+
+[ ] add a trend line
+[ ] change the point shape to open circle
+[ ] change the order and labels of Region
+[ ] label select points
+[ ] fix up the tick marks and labels
+[ ] move color legend to the top
+[ ] title, label axes, remove legend title
+[ ] theme the graph with no vertical guides
+[ ] add model R2 (hard)
+[ ] add sources note (hard)
+[ ] final touches to make it perfect (use image editor for this)
+
+```{r}
+pc2 <- pc1 +
+  geom_smooth(mapping = aes(linetype = "r2"),
+              method = "lm",
+              formula = y ~ x + log(x), se = FALSE,
+              color = "red")
+pc2 + geom_point()
+```
+
+geom_smooth()
+se=FALSE : do not show the  range
+
+```{r}
+pc2 +
+  geom_point(shape = 1, size = 4)
+
+pc3 <- pc2 + geom_point(shape = 1, size = 2.5, stroke = 1.25)
+pc3
+```
+
+stroke: the width of the border
+
+
+labelling points
+```{r}
+pointsToLabel <- c("Russia", "Venezuela", "Iraq", "Myanmar", "Sudan",
+                   "Afghanistan", "Congo", "Greece", "Argentina", "Brazil",
+                   "India", "Italy", "China", "South Africa", "Spane",
+                   "Botswana", "Cape Verde", "Bhutan", "Rwanda", "France",
+                   "United States", "Germany", "Britain", "Barbados", "Norway", "Japan",
+                   "New Zealand", "Singapore")
+(pc4 <- pc3 +
+  geom_text(aes(label = Country),
+            color = "gray20",
+            data = filter(dat, Country %in% pointsToLabel)))
+
+```
+
+
+
+#3 EDA
+
+##ECDF
+
+```{r}
+#Data Preparation
+set.seed(1234)
+df<-data.frame(height=round(rnorm(200,mean=60,sd=15)))
+height.q<-quantile(df$height)
+height.q
+```
+
+
+Plot1
+```{r}
+ggplot(df,aes(height))+
+  stat_ecdf(geom='step')+
+  labs(title='Empirical Cumulative Distribution Function',y='F(height)',x='Height in inches')+
+  theme_classic()+
+  geom_vline(aes(xintercept=quantile(height)[2]),linetype='dashed')+# first quartile
+  geom_vline(aes(xintercept=quantile(height)[4]),linetype='dashed')+
+  geom_hline(yintercept=0.25,linetype='dashed')+
+  geom_hline(yintercept=0.75,linetype='dashed')
+```
+
+ecdf:
+stat_ecdf(geom="step")
+ref lines:
+vertical:geom_vline() using variables: height, thus need aes(xintercept=quantile(height)[2])
+horizontal:geom_hline() yintercept=0.25
+
+subset data for add specific ref line
+geom_vline(data=subset(tophitters2001,lg=='AL'),aes(xintercept=quantile(avg)[3]))
+
+linetype='dashed'
+
+
+Plot2
+```{r}
+#First two lines generate the same plot
+
+ggplot(tophitters2001,aes(avg,fill=lg,color=lg))+
+  stat_ecdf(geom='step')
+
+ggplot(tophitters2001,aes(avg))+
+  stat_ecdf(geom='step',aes(color=lg))+
+  geom_hline(yintercept=0.5,linetype='dashed')+
+  geom_vline(data=subset(tophitters2001,lg=='AL'),aes(xintercept=quantile(avg)[3]),
+             linetype='dashed')+
+  geom_vline(data=subset(tophitters2001,lg=='NL'),aes(xintercept=quantile(avg)[3]),
+             linetype='dashed')+
+  labs(title='MLB Top Hitters 2001 Batting Average',x='Batting Average',y='ECDF')+
+  theme_classic()
+```
+
+##Histogram/violin/beeswarm showing spread/distribution
+```{r}
+#library(gcookbook)
+View(tophitters2001)
+
+ggplot(tophitters2001,aes(avg,fill=lg))+
+  geom_histogram(alpha=0.5)
+
+ggplot(tophitters2001,aes(lg,avg))+
+  geom_violin(aes(fill=lg))+
+  geom_jitter(width=0.1)
+
+library(ggbeeswarm)
+
+ggplot(tophitters2001,aes(lg,avg))+
+  geom_beeswarm(aes(color=lg))
+```
+
+##Histogram
+
+```{r}
+#Data preparation
+library(fGarch)
+set.seed(1953)
+
+norm <- rnorm(1000, 50, 10)
+
+norm.highMean <- rnorm(1000, 75, 10)
+
+norm.highSD <- rnorm(1000, 50, 30)
+
+#xi:skewness parameter
+norm.NegSkew <- rsnorm(1000, mean=50, sd=10, xi=-10)
+
+norm.PosSkew <- rsnorm(1000, mean=50, s=10, xi=10)
+
+```
+
+```{r}
+#par(mfrow=c(5,1))
+hist(norm, main="Norm(50,10)", xlim=c(-100,200), breaks=10)
+hist(norm.highMean, main="Norm(75,10)", xlim=c(-100,200), breaks=10)
+hist(norm.highSD, main="Norm(50,30)", xlim=c(-100,200), breaks=10)
+hist(norm.NegSkew, main="Norm(50, 10, -10)", xlim=c(-100,200), breaks=10)
+hist(norm.PosSkew, main="Norm(50, 10, 10)", xlim=c(-100,200), breaks=10)
+```
+
+breaks: number of bins
+
+
+##QQplot
+
+```{r}
+qqplot(norm, norm, main="Q-Q Plot Nor(50,10) vs Norm(50,10")
+abline(0, 1, col="red")
+
+qqplot(norm, norm.highMean, main="Q-Q Plot Norm(50,10) vs Norm(75,10)")
+abline(0, 1, col="red")
+
+qqplot(norm, norm.highSD, main="Q-Q Plot Norm(50,10) vs Norm(50,30)")
+abline(0, 1, col="red")
+
+qqplot(norm, norm.NegSkew, main="Q-Q Plot Norm(50,10) vs Norm(50,10,-10)")
+abline(0, 1, col="red")
+
+qqplot(norm, norm.PosSkew, main="Q-Q Plot Norm(50,10) vs Norm(50,10,+10)")
+abline(0, 1, col="red")
+```
+
+abline(a,b,col="red")
+color doesn't work, must be col
+y=bx+a
+intercept: a  slope: b
+
+
+QQ plot for comparing two distribution:Iris example
+```{r}
+setosa <- subset(iris, Species=="setosa")
+hist(setosa$Sepal.Length, xlim=c(1,10))
+versicolor <- subset(iris, Species=="versicolor")
+hist(versicolor$Sepal.Length, xlim=c(1,10))
+qqplot(setosa$Sepal.Length, versicolor$Sepal.Length, xlim=c(1,10), ylim=c(1,10))
+abline(0,1, col="red")
+```
+
+
+##Scatter plots
+```{r}
+data(oly12, package="VGAMdata")
+ggplot(oly12, aes(Height, Weight)) + geom_jitter() +
+  ggtitle("Athletes at the London Olympics 2012") + theme_minimal()
+```
+
+
+```{r}
+data(geyser, package="MASS")
+ggplot(geyser, aes(duration, waiting)) + geom_point() +
+  geom_density2d() + 
+  ggtitle("Old Faithful Eruption Waiting Time vs Duration (Minutes)") +
+  theme_minimal()
+```
+
+drawing contours: geom_density2d() 
+
+
+```{r}
+oly12S <- within(oly12, Sport <- abbreviate(Sport, 12))
+ggplot(oly12S, aes(Height, Weight)) +
+  geom_point(size=1, alpha=0.5) + 
+  facet_wrap(~Sport)+
+  ggtitle("Weight and Height by Sport") +
+  theme_minimal()
+```
+
+In GGally
+
+ggpairs: showing scatterplots, distribution, and correlation [correlation matrix]
+```{r}
+data(crime.us, package="VGAMdata")
+crime.usR <- crime.us
+
+names(crime.usR) <- gsub("*Rate", "", names(crime.usR))
+names(crime.usR)[19:20] <- c("Larceny", "MotorVTheft")
+library(GGally)
+ggpairs(crime.usR[, c(13:16,18:20)],
+        title="Crime rates in the USA",
+        diag=list(continuous='density'), axisLabels = 'none')
+```
+
+
+In ggExtra
+
+rug
+```{r}
+library(ggExtra)
+
+p <- ggplot(mtcars, aes(wt, mpg)) +
+  geom_point()
+p
+p + geom_rug()
+p + geom_rug(sides="b")    # Rug on bottom only
+p + geom_rug(sides="trbl") # All four sides
+
+# Use jittering to avoid overplotting for smaller datasets
+ggplot(mpg, aes(displ, cty)) +
+  geom_point() +
+  geom_rug()
+
+ggplot(mpg, aes(displ, cty)) +
+  geom_jitter() +
+  geom_rug(alpha = 1/2, position = "jitter", colour="red") +
+  theme_classic()
+```
+
+Another way to see distribution, just see it on axis
+geom_rug(sides="b") bottom
+geom_rug(alpha = 1/2, position = "jitter", colour="red")
+
+
+ggMarginal: add reference distributions
+```{r}
+histP <- ggplot(mpg, aes(displ, cty)) +
+  geom_jitter() +
+  theme_classic()
+ggExtra::ggMarginal(histP, type="histogram", fill="red")
+
+ggMarginal(histP, type="histogram", fill="red")
+#?ggMarginal
+ggMarginal(histP, type="density", fill="blue")
+ggMarginal(histP, type="densigram", fill="red")
+```
+
+
+Other histogram example
+
+```{r}
+library(ggthemes)
+
+birth<-read.csv('http://datasets.flowingdata.com/birth-rate.csv')
+hist(birth$X2008,breaks = 20)
+```
+
+
+```{r}
+ggplot(birth,aes(birth$X2008))+
+  geom_histogram(binwidth=5,col='red',fill='powderblue',alpha=0.2)+
+  labs(title = 'Global Distributions of Birth Rates',
+       x='Live Births per 1,000',
+       y='County Count')+
+  ggthemes::theme_tufte()
+
+```
+
+geom_histogram(binwidth=5,col='red',fill='powderblue',alpha=0.2)
+binwidth: each bin's width
+col: outline color
+fill: inside color
+
+```{r}
+ggplot(faithful,aes(x=waiting))+geom_histogram()
+ggplot(faithful,aes(x=waiting))+geom_density()
+ggplot(faithful,aes(x=waiting))+geom_line(stat='density')+
+  expand_limits(y=0)
+ggplot(faithful,aes(x=waiting))+geom_density(fill='blue',color=NA,#color=NA remove the outline first
+                                             alpha=0.2)+
+  geom_line(stat='density')+#add a new outline using geom_line
+  xlim(35,105)
+```
+
+geom_histogram()
+geom_density() <=> geom_line(stat='density')
+
+```{r}
+library(MASS)
+birthwt1<-birthwt
+
+birthwt1$smoke<-factor(birthwt1$smoke)
+
+ggplot(birthwt1,aes(x=bwt,fill=smoke))+
+  geom_density(alpha=0.3)+
+  labs(title='Birth Weight and Smoking',x='Birth Weight(in grams)',
+       y='Density',fill='Mother Smoked')+#fill-mother smoked as legend titile
+  scale_fill_manual(labels=c('No','Yes'),values=c('navy','maroon'))+#rewrite legend, dont use legend as variable names 
+  theme_few()
+
+ggplot(birthwt1,aes(x=bwt,fill=smoke))+
+  geom_histogram(alpha=0.3,position='identity')+
+  labs(title='Birth Weight and Smoking',x='Birth Weight(in grams)',
+       y='Density',fill='Mother Smoked')+#fill-mother smoked as legend titile
+  scale_fill_manual(labels=c('No','Yes'),values=c('navy','maroon'))+#rewrite legend, dont use legend as variable names 
+  theme_few()
+
+ggplot(birthwt1,aes(x=bwt,fill=smoke))+
+  geom_histogram(alpha=0.3,position='dodge')+
+  labs(title='Birth Weight and Smoking',x='Birth Weight(in grams)',
+       y='Density',fill='Mother Smoked')+#fill-mother smoked as legend titile
+  scale_fill_manual(labels=c('No','Yes'),values=c('navy','maroon'))+#rewrite legend, dont use legend as variable names 
+  theme_few()
+
+ggplot(birthwt1,aes(x=bwt,fill=smoke))+
+  geom_histogram(alpha=0.3,position='stack')+
+  labs(title='Birth Weight and Smoking',x='Birth Weight(in grams)',
+       y='Density',fill='Mother Smoked')+#fill-mother smoked as legend titile
+  scale_fill_manual(labels=c('No','Yes'),values=c('navy','maroon'))+#rewrite legend, dont use legend as variable names 
+  theme_few()
+```
+
+position= identity/dodge/stack
+setting legends and axis
+scale_fill_manual()
+
+
+#4 Homework 1
+
+Plot1
+
+```{r}
+library(readxl)
+
+library(scales)
+library(psych)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(grid)
+library(showtext)
+library(Cairo)
+library(readr)
+
+```
+
+
+```{r}
+HBR_CEO_data <- read_excel("C:/_Emory/2&4-675-Data Viz/Assignments/#1-Due Oct 2 Wed/HBR-CEO-data-PV.xlsx")
+
+data<-HBR_CEO_data
+
+# Bar chart and flip the axis
+p11<-ggplot(data,aes(x=reorder(data$`CEO NAME`,-data$Rank),data$Pay,fill=data$Category))+
+  geom_bar(stat="identity",position='dodge')+
+  scale_y_continuous(labels = comma,breaks=seq(0,50000,5000))+
+  coord_flip()
+
+# Add themes, title, legends and other annotations
+p12<-p11+theme_economist()+
+  labs(title='Top 10 US CEO Compensation',x='',y='USD in thousand')+
+  theme(legend.position=c(0.91,0.947),legend.title=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+p12
+
+```
+
+
+Plot2
+
+```{r}
+BigMac <- read_csv("C:/_Emory/2&4-675-Data Viz/Assignments/#1-Due Oct 2 Wed/BigMac.csv", 
+                   col_types = cols(date = col_date(format = "%Y/%m/%d")))
+
+
+# Line, point, setting axis and ticks
+p21<-ggplot(BigMac,aes(x=BigMac$date,y=BigMac$FX,
+                      group=BigMac$Category,fill=BigMac$Category,
+                      color=BigMac$Category))+
+  coord_cartesian(ylim=c(0, 8.5))+scale_y_continuous(breaks=seq(0,9,0.5))+
+  geom_point(size=1.5)+
+  geom_line(size=0.8)
+  
+
+# Titles, themes
+p22<-p21+theme_stata()+
+  labs(title='CNY/USD Exchange Rate',x='',y='CNY per USD')+
+  theme(legend.position=c(0.9,0.92),legend.title=element_blank(),
+        plot.title = element_text(face='bold',hjust = 0.5))
+
+
+# Annotations
+p23<-p22+annotate("text", x=BigMac$date[6]+53, y=7.2, label="2005-07-21 \n Abolished Yuan-Dollar peg \n Adopted floating rate",fontface='bold')+
+  annotate("text", x=BigMac$date[24]+40, y=5.5, label="2015-08-11 \n Improved central parity system \n to better reflect market development",fontface='bold')
+
+# Reference line
+p24<-p23+geom_vline(xintercept=BigMac$date[6]+53,linetype=2,size=.25,colour="grey")+
+  geom_vline(xintercept=BigMac$date[24]+40,linetype=2,size=.25,colour="grey")
+  
+# Annotations for Stages
+  
+p25<-p24+annotate("text", x=BigMac$date[3]+60, y=1.5, label="Stage 1",fontface='bold')+
+  annotate("text", x=BigMac$date[15]-30, y=1.5, label="Stage 2",fontface='bold')+
+  annotate("text", x=BigMac$date[28]+40, y=1.5, label="Stage 3",fontface='bold')
+
+p25
+```
+
+
+
+Others
+geom_step()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
